@@ -3,7 +3,7 @@ class Tbx < Formula
   homepage "https://github.com/Sakuard/toolbox"
   url "https://github.com/Sakuard/toolbox/archive/refs/tags/v0.1.0.tar.gz"
   sha256 "4979543aee4c29ab85a20450ce0a8cbe613b265ace9497b589cf51f0ccb51b2c"
-  license "MIT"
+  license "BSD-3-Clause"
 
   depends_on "fzf"
 

@@ -1,0 +1,40 @@
+name: Update toolbox
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: update-toolbox
+  cancel-in-progress: false
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Test updater
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Get latest stable release
+        id: formula
+        run: |
+          python3 scripts/fetch-release.py
+          if git diff --quiet -- Formula/tbx.rb; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'Already up to date.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install and test updated formula
+        if: steps.formula.outputs.changed == 'true'
+        run: bash scripts/test-install.sh
+      - name: Commit tested formula
+        if: steps.formula.outputs.changed == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Formula/tbx.rb
+          git commit -m 'chore: update tbx to latest release'
+          git push origin HEAD:main
+          echo 'Updated tbx; installation and brew test passed.' >> "$GITHUB_STEP_SUMMARY"
