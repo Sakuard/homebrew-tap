@@ -1,4 +1,4 @@
-class Tbx < Formula
+class TbxAT011 < Formula
   desc "Personal CLI toolbox powered by fzf"
   homepage "https://github.com/Sakuard/toolbox"
   url "https://github.com/Sakuard/toolbox/releases/download/v0.1.1/toolbox-0.1.1.tar.gz"
