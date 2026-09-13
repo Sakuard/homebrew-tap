@@ -42,8 +42,18 @@ class UpdateTests(unittest.TestCase):
         self.assertIn('/releases/download/v0.1.1/toolbox-0.1.1.tar.gz', result)
         self.assertIn(updater.hashlib.sha256(self.archive.read_bytes()).hexdigest(), result)
         self.assertIn('shell_output("#{bin}/tbx --version")', result)
+        versioned = self.root / 'tbx@0.1.1.rb'
+        self.assertEqual(versioned.read_text(), result.replace('class Tbx < Formula', 'class TbxAT011 < Formula'))
         updater.update('v0.1.1', self.archive, self.formula)
         self.assertEqual(result, self.formula.read_text())
+
+    def test_preserve_existing_versioned_formulas(self):
+        self.package()
+        for version in ['0.1.0', '0.1.1']:
+            (self.root / f'tbx@{version}.rb').write_text(f'original {version}')
+        updater.update('v0.1.1', self.archive, self.formula)
+        for version in ['0.1.0', '0.1.1']:
+            self.assertEqual((self.root / f'tbx@{version}.rb').read_text(), f'original {version}')
 
     def test_reject_invalid_tag(self):
         for tag in ['v0.1.1-rc.1', '0.1.1', 'v01.1.1', 'v1.2.3\n']:

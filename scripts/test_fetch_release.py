@@ -6,10 +6,29 @@ from pathlib import Path
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('fetcher', Path(__file__).with_name('fetch-release.py'))
 fetcher = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fetcher)
+
+
+class DownloadTests(unittest.TestCase):
+    def test_token_only_sent_to_github_api(self):
+        for url, expected in [
+            ('https://api.github.com/repos/Sakuard/toolbox/releases/latest', 'Bearer test-token'),
+            ('https://github.com/Sakuard/toolbox/releases/download/v0.1.1/SHA256SUMS', None),
+            ('https://api.github.com.example.com/file', None),
+        ]:
+            with self.subTest(url=url), patch.dict(fetcher.os.environ, {'GH_TOKEN': 'test-token'}), patch.object(fetcher.urllib.request, 'urlopen') as opener:
+                opener.return_value.__enter__.return_value.read.return_value = b'data'
+                self.assertEqual(fetcher.download(url), b'data')
+                self.assertEqual(opener.call_args.args[0].get_header('Authorization'), expected)
+
+    def test_download_without_token(self):
+        with patch.dict(fetcher.os.environ, {}, clear=True), patch.object(fetcher.urllib.request, 'urlopen') as opener:
+            fetcher.download('https://api.github.com/repos/Sakuard/toolbox/releases/latest')
+            self.assertIsNone(opener.call_args.args[0].get_header('Authorization'))
 
 
 class FetchTests(unittest.TestCase):
@@ -17,7 +36,7 @@ class FetchTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.formula = Path(self.temp.name) / 'tbx.rb'
-        self.original = '  url "https://github.com/Sakuard/toolbox/archive/refs/tags/v0.1.0.tar.gz"\n  sha256 "old"\n'
+        self.original = 'class Tbx < Formula\n  url "https://github.com/Sakuard/toolbox/archive/refs/tags/v0.1.0.tar.gz"\n  sha256 "old"\nend\n'
         self.formula.write_text(self.original)
         self.release = dict(tag_name='v0.1.1', draft=False, prerelease=False,
                             assets=[dict(name='toolbox-0.1.1.tar.gz'), dict(name='SHA256SUMS')])
@@ -52,6 +71,15 @@ class FetchTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'checksum mismatch'):
             fetcher.sync(self.formula, self.fetch)
         self.assertEqual(self.original, self.formula.read_text())
+
+    def test_backfill_missing_versioned_formula(self):
+        fetcher.sync(self.formula, self.fetch)
+        versioned = self.formula.with_name('tbx@0.1.1.rb')
+        versioned.unlink()
+        stable = self.formula.read_text()
+        fetcher.sync(self.formula, self.fetch)
+        self.assertTrue(versioned.exists())
+        self.assertEqual(stable, self.formula.read_text())
 
     def test_missing_asset_does_not_edit(self):
         self.release['assets'] = []

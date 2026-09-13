@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import tempfile
@@ -14,7 +15,12 @@ REPO = 'Sakuard/toolbox'
 
 
 def download(url):
-    request = urllib.request.Request(url, headers={'User-Agent': 'Sakuard-homebrew-tap'})
+    headers = {'User-Agent': 'Sakuard-homebrew-tap'}
+    if url.startswith('https://api.github.com/'):
+        token = os.environ.get('GH_TOKEN')
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+    request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=60) as response:
         return response.read()
 
@@ -30,7 +36,10 @@ def sync(formula, fetch=download):
     if not current:
         raise ValueError('Cannot determine current formula version')
     version = tag[1:]
-    if tuple(map(int, version.split('.'))) <= tuple(map(int, current[1].split('.'))):
+    latest_version = tuple(map(int, version.split('.')))
+    current_version = tuple(map(int, current[1].split('.')))
+    versioned = formula.with_name(f'tbx@{version}.rb')
+    if latest_version < current_version or (latest_version == current_version and versioned.exists()):
         print(f'No upgrade needed (installed formula: {current[1]}, latest release: {version})')
         return
     filename = f'toolbox-{version}.tar.gz'

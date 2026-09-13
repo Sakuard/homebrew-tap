@@ -18,9 +18,11 @@ jobs:
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Get latest stable release
         id: formula
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           python3 scripts/fetch-release.py
-          if git diff --quiet -- Formula/tbx.rb; then
+          if [[ -z "$(git status --porcelain -- Formula/)" ]]; then
             echo 'changed=false' >> "$GITHUB_OUTPUT"
             echo 'Already up to date.' >> "$GITHUB_STEP_SUMMARY"
           else
@@ -34,7 +36,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add Formula/tbx.rb
+          git add -- Formula/tbx.rb Formula/tbx@*.rb
           git commit -m 'chore: update tbx to latest release'
           git push origin HEAD:main
           echo 'Updated tbx; installation and brew test passed.' >> "$GITHUB_STEP_SUMMARY"

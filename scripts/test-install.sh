@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-ruby -c Formula/tbx.rb
-ruby -c Formula/tbx@0.1.0.rb
+for formula in Formula/*.rb; do
+  ruby -c "$formula"
+done
 brew tap --custom-remote Sakuard/tap "$PWD"
 # A local tap is a git clone: explicitly include the uncommitted candidate.
 cp Formula/*.rb "$(brew --repository Sakuard/tap)/Formula/"

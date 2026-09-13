@@ -32,6 +32,14 @@ def update(tag, archive, formula):
     # v0.1.0 predates the --version flag; enable this test with the new package.
     source = source.replace('    assert_predicate bin/"tbx", :executable?',
                             '    assert_equal "tbx #{version}", shell_output("#{bin}/tbx --version").strip')
+    versioned = formula.with_name(f'tbx@{version}.rb')
+    versioned_source, count = re.subn(r'^class Tbx < Formula$',
+                                    f'class TbxAT{version.replace(".", "")} < Formula',
+                                    source, flags=re.MULTILINE)
+    if count != 1:
+        raise ValueError('Expected exactly one Tbx formula class')
+    if not versioned.exists():
+        versioned.write_text(versioned_source)
     formula.write_text(source)
 
 
